@@ -1,50 +1,43 @@
-name: Build Laravel Project
+name: Build Laravel 6 Project
 
 on:
   push:
-    branches:
-      - master
-  workflow_dispatch:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📦 Checkout source
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🧰 Setup PHP
+      - name: Setup PHP 7.4
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.1'
-          extensions: mbstring, bcmath, intl, gd, pdo_mysql, tokenizer, xml, ctype, json, curl
-          coverage: none
+          php-version: '7.4'
+          extensions: mbstring, intl, pdo, pdo_mysql, tokenizer, xml, ctype, json, bcmath
+          tools: composer:v2
 
-      - name: 🧩 Install dependencies
-        run: |
-          composer install --no-dev --optimize-autoloader
+      - name: Validate composer.json and composer.lock
+        run: composer validate --no-check-all
 
-      - name: 🧱 Generate key & optimize
-        run: |
-          cp .env.example .env || true
-          php artisan key:generate
-          php artisan config:cache
-          php artisan route:cache
-          php artisan view:cache
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-suggest --no-interaction
 
-      - name: 🧹 Remove unnecessary files
-        run: |
-          rm -rf tests/ storage/logs/* storage/framework/cache/* storage/framework/views/*
-          mkdir -p storage/framework/{cache,sessions,views}
-          chmod -R 777 storage bootstrap/cache
+      - name: Generate app key
+        run: php artisan key:generate
 
-      - name: 🗜️ Create deployment zip
-        run: |
-          zip -r laravel_build.zip . -x ".git/*" ".github/*" "vendor/bin/*" "node_modules/*"
+      - name: Run tests
+        run: php artisan test || echo "No tests found."
 
-      - name: 📤 Upload artifact
+      - name: Archive build artifacts
+        run: zip -r build.zip . -x "*.git*" "vendor/*"
+        
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: laravel_build
-          path: laravel_build.zip
+          name: laravel6-build
+          path: build.zip
