@@ -11,9 +11,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Setup PHP 7.4 dengan ekstensi penting
       - name: Setup PHP 7.4
         uses: shivammathur/setup-php@v2
         with:
@@ -21,15 +23,19 @@ jobs:
           extensions: mbstring, intl, pdo, pdo_mysql, tokenizer, xml, ctype, json, bcmath
           tools: composer:v2
 
+      # 3. Clear composer cache
       - name: Clear composer cache
         run: composer clear-cache
 
-      - name: Remove old vendor folder & autoload
+      # 4. Hapus vendor dan composer.lock lama
+      - name: Remove old vendor folder & composer.lock
         run: rm -rf vendor composer.lock
 
-      - name: Install dependencies fresh
+      # 5. Install dependencies fresh
+      - name: Install dependencies
         run: composer install --no-progress --no-suggest --prefer-dist --no-interaction
 
+      # 6. Clear Laravel caches
       - name: Clear Laravel caches
         run: |
           php artisan config:clear || true
@@ -37,15 +43,26 @@ jobs:
           php artisan route:clear || true
           php artisan view:clear || true
 
+      # 7. Buat file .env kalau belum ada
+      - name: Create .env file if missing
+        run: |
+          if [ ! -f .env ]; then
+            cp .env.example .env
+          fi
+
+      # 8. Generate application key
       - name: Generate app key
         run: php artisan key:generate
 
+      # 9. Package discovery (Laravel 6 kadang perlu manual)
       - name: Package discover manually
         run: php artisan package:discover || true
 
+      # 10. Archive build jadi zip
       - name: Archive build
         run: zip -r build.zip . -x "*.git*" "vendor/*"
 
+      # 11. Upload artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
