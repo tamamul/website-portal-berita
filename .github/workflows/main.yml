@@ -1,0 +1,50 @@
+name: Build Laravel Project
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Checkout source
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: mbstring, bcmath, intl, gd, pdo_mysql, tokenizer, xml, ctype, json, curl
+          coverage: none
+
+      - name: 🧩 Install dependencies
+        run: |
+          composer install --no-dev --optimize-autoloader
+
+      - name: 🧱 Generate key & optimize
+        run: |
+          cp .env.example .env || true
+          php artisan key:generate
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+
+      - name: 🧹 Remove unnecessary files
+        run: |
+          rm -rf tests/ storage/logs/* storage/framework/cache/* storage/framework/views/*
+          mkdir -p storage/framework/{cache,sessions,views}
+          chmod -R 777 storage bootstrap/cache
+
+      - name: 🗜️ Create deployment zip
+        run: |
+          zip -r laravel_build.zip . -x ".git/*" ".github/*" "vendor/bin/*" "node_modules/*"
+
+      - name: 📤 Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: laravel_build
+          path: laravel_build.zip
